@@ -1,0 +1,15 @@
+COMPILER = g++
+FLAGS = -g -Wall -std=c++0x
+ONE= program2
+TWO= memgen
+all: program2 memgen
+program2: program2.o
+	$(COMPILER) $(FLAGS) -o program2 program2.o
+program2.o: program2.cpp
+	$(COMPILER) $(FLAGS) -c program2.cpp
+memgen: memgen.o
+	$(COMPILER) $(FLAGS) -o memgen memgen.o
+memgen.o: memgen.cpp	
+	$(COMPILER) $(FLAGS) -c memgen.cpp
+clean:
+	rm -f $(EXECUTABLE) *.o

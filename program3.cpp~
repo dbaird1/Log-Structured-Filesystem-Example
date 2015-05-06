@@ -1,0 +1,265 @@
+#include<iostream>
+#include<vector>
+#include<string>
+#include<string.h>
+#include<fstream>
+#include<sstream>
+#include<map>
+#include<queue>
+#include <utility>
+struct Process{
+	int pid;		
+	int addrSpaceSize;
+};
+struct memEntry{
+	int pid;
+	int pageNum;
+};
+Process* newProcess(int pid, int addrSpaceSize){
+	Process* retProcess= new Process();
+	retProcess->pid= pid;
+	retProcess-> addrSpaceSize= addrSpaceSize;
+	return retProcess;	
+}
+memEntry* newMemEntry(int pid, int pageNum){
+	memEntry* retMemEntry= new memEntry();
+	retMemEntry->pid=pid;
+	retMemEntry->pageNum=pageNum;
+	return retMemEntry;
+}
+//returns index of max ele
+int maxEle(int arr[], int size){
+	int ret=0;
+	int max=0;
+	for(int i=0;i<size;i++){
+		if(arr[i]>max){
+			max=arr[i];
+			ret=i;
+		}
+	}
+	return ret;
+	
+}
+using namespace std;
+int main(int argc, char* argv[]){
+	int referenceCount=0;
+	int pageFaultCount=0;
+	int randFaultCount=0, lruFaultCount=0, fifoFaultCount=0;
+	vector <Process*> Processes; 
+	queue <memEntry*> pageQueue;
+	ifstream infile;
+        string inputFile;
+	if(argc!=3){
+		cout<<"incorrect arguments"<<endl;
+		exit(1);
+	}
+	int frames= atoi(argv[1]);
+	int lruArr[frames];
+	for(int i=0;i<frames;i++){
+		lruArr[i]=-1;
+	}
+	srand(time(NULL));
+	memEntry* randMemory[frames];
+	memEntry* lruMemory[frames];
+	memEntry* fifoMemory[frames];
+	for(int i=0; i<frames;i++){
+		randMemory[i]= (newMemEntry(-1,-1));
+		lruMemory[i]= (newMemEntry(-1,-1));
+		fifoMemory[i]= (newMemEntry(-1,-1));
+	}
+
+	int flag;
+	int tempPid;
+	int tempAddrSpaceSize;
+	inputFile= argv[2];
+	infile.open(inputFile);
+	string line; 
+	if(infile.is_open()){
+		while(getline(infile, line)){
+			stringstream ss(line);
+                        string word;
+                        vector<string> words;
+                        while (ss>>word){
+                                words.push_back(word);
+                        }
+/**
+When START is read, puts a processes into the Processes vector
+*/
+			if(words[0]=="START"){
+				tempPid= stoi(words[1]);
+				tempAddrSpaceSize= stoi(words[2]);	
+				Processes.push_back(newProcess(tempPid, tempAddrSpaceSize));
+
+			}
+/**
+When TERMINATE is read, eliminates all instances of that process in all memory spaces
+*/
+			else if(words[0] == "TERMINATE"){	
+				tempPid= stoi(words[1]);
+				for(int i = 0; i<frames; i++){
+					if(randMemory[i]->pid==tempPid){	
+						randMemory[i]->pid=-1;
+						randMemory[i]->pageNum=-1;
+					}
+				}	
+				for(int i = 0; i<frames; i++){
+					if(lruMemory[i]->pid==tempPid){	
+						lruMemory[i]->pid=-1;
+						lruMemory[i]->pageNum=-1;
+					}
+				}	
+				for(int i = 0; i<frames; i++){
+					if(fifoMemory[i]->pid==tempPid){	
+						fifoMemory[i]->pid=-1;
+						fifoMemory[i]->pageNum=-1;
+					}
+				}	
+
+			}
+/**
+If REFERENCE is read, check to see if the process is running, and then 
+attempts to reference the correspoding page. If the page is not in memory,
+we attempt to put it in memory. If memory is full, implement a page replacement strategy
+*/
+			else if(words[0] == "REFERENCE"){	
+				referenceCount++;
+				tempPid= stoi(words[1]);
+				int pageNumber= stoi(words[2]);
+				int processFlag=0;
+				if(pageNumber<1){
+					pageFaultCount++;
+					break;
+				}
+				for(unsigned i=0;i<Processes.size();i++){
+					if(Processes[i]->pid==tempPid){
+						processFlag=1;
+					}
+				}
+				if(processFlag==1){
+					flag=0;
+/**
+Begin Page replacement using random raplcement method
+To do so, we simply wait until memory is full and select a random page in memory as the victim page. 
+*/
+					
+					int memEntryFlag=0;
+					for(int j=0;j<frames;j++){
+						if(randMemory[j]->pid==tempPid && randMemory[j]->pageNum==pageNumber){
+							flag=1;
+						}
+					}
+					if(flag==0){
+						randFaultCount++;
+						for(int i=0;i<frames;i++){	
+							if(randMemory[i]->pid==-1 && memEntryFlag==0){
+								randMemory[i]->pid=tempPid;
+								randMemory[i]->pageNum=pageNumber;
+								memEntryFlag=1;
+							}
+						}
+						if(memEntryFlag==0){
+							int randIndex= rand() %frames;
+							randMemory[randIndex]->pid= tempPid;
+							randMemory[randIndex]->pageNum= pageNumber;
+						}
+					}
+					
+/**
+Begin Page replacement using lru replcement method
+To do so, we maintain a seperate arrat lruArr, that is the same size as memory. lruArr keeps track
+of the "age" of a page in memory. When selecting a victim page, we select the "oldest" page according
+to lruArr. When we add a page to memory, it's "age" is 0 and all other process "ages" and increased by 1.
+*/
+					
+					memEntryFlag=0;
+					for(int j=0;j<frames;j++){
+						if(lruMemory[j]->pid==tempPid && (lruMemory[j]->pageNum==pageNumber)){	
+							lruArr[j]=0;
+							for(int k=0;k<frames;k++){
+								if(lruArr[k]>-1 && k!=j){
+									lruArr[k]++;
+								}
+							}
+							flag=1;
+						}
+							
+					}
+					if(flag==0){
+						lruFaultCount++;
+						for(int i=0;i<frames;i++){	
+							if(lruMemory[i]->pid==-1 && memEntryFlag==0){
+								lruMemory[i]->pid=tempPid;
+								lruMemory[i]->pageNum=pageNumber;
+								lruArr[i]=0;
+								for(int k=0;k<frames;k++){
+									if(lruArr[k]>-1 && k!=i){
+										lruArr[k]++;
+									}
+								}
+								memEntryFlag=1;
+							}
+						}
+						if(memEntryFlag==0){
+							int maxIndex= maxEle(lruArr, frames);
+							lruMemory[maxIndex]->pid= tempPid;
+							lruMemory[maxIndex]->pageNum=pageNumber;
+							lruArr[maxIndex]=0;
+							for(int k=0;k<frames;k++){
+								if(lruArr[k]>-1 && k!=maxIndex){
+									lruArr[k]++;
+								}
+							}
+															
+						}
+
+					}
+
+/**
+Begin Page replacement using fifo raplcement method
+We do so my maintianing a queue of pages. When memory is full, we reference the front of the queue,
+select that page as the victim page, and pop it off the queue.
+*/
+					
+					memEntryFlag=0;
+					for(int j=0;j<frames;j++){
+						if(fifoMemory[j]->pid==tempPid && (fifoMemory[j]->pageNum==pageNumber)){
+							flag=1;
+						}
+					}
+					if(flag==0){
+						fifoFaultCount++;
+						for(int i=0;i<frames;i++){	
+							if(fifoMemory[i]->pid==-1&& memEntryFlag==0){
+								fifoMemory[i]->pid=tempPid;
+								fifoMemory[i]->pageNum=pageNumber;
+								pageQueue.push(newMemEntry(tempPid, pageNumber));
+								memEntryFlag=1;
+							}
+						}
+						if(memEntryFlag==0){
+							for(int i=0; i<frames; i++){
+								if(pageQueue.size()>0){
+									if((fifoMemory[i]->pid==pageQueue.front()->pid) && (fifoMemory[i]->pageNum==pageQueue.front()->pageNum)&&memEntryFlag==0){
+										fifoMemory[i]->pid = tempPid;
+										fifoMemory[i]->pageNum= pageNumber;
+										pageQueue.pop();
+										memEntryFlag=1;	
+									}	
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if(referenceCount==0){
+		cout<<"No references made"<<endl;
+			
+	}else{
+		cout<<"RANDOM: <"<< ((double)(randFaultCount+ pageFaultCount)/referenceCount)*100<<">%"<<endl;
+		cout<<"LRU: <" << ((double)(lruFaultCount+ pageFaultCount)/referenceCount)*100<<">%"<<endl;
+		cout<<"FIFO: <" << ((double)(fifoFaultCount+ pageFaultCount)/referenceCount)*100<<">%"<<endl;
+	}
+	return 0;
+}
