@@ -8,6 +8,8 @@
 #include <map>
 #include <utility>
 #include <pair>
+#include <algorithm>
+#include <math>
 using namespace std;
 //returns index of max ele
 struct block{
@@ -138,13 +140,21 @@ int main(int argc, char* argv[]){
 					currReadBlock = stoi(words[2], nullptr);
 
 					//just alter stats on disk needle movement
+					/*
 					int travelingRW = rwHead;
 					int inodeDistance = rwHead - imap[currReadFile];
-					if((numBlocks - rwHead)+imap[currReadFile] < inodeDistance)
+					if((numBlocks - rwHead)+imap[currReadFile] < inodeDistance || inodeDistance < 1)
 						inodeDistance = (numBlocks - rwHead)+imap[currReadFile];
+					
 					int blockDistance = inodeDistance - imap[currReadFile]]->inode[currReadBlock];
-					if((numBlocks - inodeDistance) + imap[currReadFile]]->inode[currReadBlock] < blockDistance
-					totalSeek+= 
+					if((numBlocks - inodeDistance) + imap[currReadFile]]->inode[currReadBlock] < blockDistance)
+						blockDistance = (numBlocks - inodeDistance) + imap[currReadFile]]->inode[currReadBlock]);
+					int retDist*/
+
+					int inodeDistance = min(abs(rwHead - imap[currReadFile]), numBlocks - abs(rwHead - imap[currReadFile]));
+					int blockDistance = min(abs(inodeDistance - imap[currReadFile]]->inode[currReadBlock]), numBlocks - abs(inodeDistance - imap[currReadFile]]->inode[currReadBlock]));
+					int retDistance = min(abs(blockDistance - rwHead), numBlocks - abs(blockDistance - rwHead));
+					totalSeek+= inodeDistance + blockDistance + retDistance;
 				}
 				else if(words[0] == "WRITE")
 				{	
