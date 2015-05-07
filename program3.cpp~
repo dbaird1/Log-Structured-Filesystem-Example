@@ -84,9 +84,34 @@ int main(int argc, char* argv[]){
 				for(i = cleanStartIndex; i < (cleanStartIndex + (numBlocks/numSegments)) && i < numBlocks; i++)
 				{
 					vector <int> temp;
+					while(disk[i]->type ==-1 &&  i < (cleanStartIndex + (numBlocks/numSegments)) && i < numBlocks)
+					{
+						i++;
+					}
 					if(disk[i]->type == 1)
 					{
-						
+						for(int j = 0; j < disk[i]->inode.size(); j++)
+							temp.push_back(disk[i]->inode[j]);
+						disk[i]->type = -1;
+						disk[i]->inode.clear();
+						disk[rwHead]->type = 1;
+						disk[rwHead]->inode.clear();
+						for(int j = 0; j < temp.size(); j++)
+							disk[rwHead]->inode.push_back(temp[j]);
+					}
+					else if (disk[i]->type == 0)
+					{
+						disk[i]->type = -1;
+						disk[i]->inode.clear();
+						disk[rwHead]->type = 0;
+						disk[rwHead]->inode.clear();
+					}
+
+					while(disk[rwHead]->type !=-1)
+					{
+						rwHead++;
+						if(rwHead == numBlocks)
+							rwHead = 0;
 					}
 				} 
 			}
