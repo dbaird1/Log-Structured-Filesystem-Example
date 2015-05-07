@@ -71,18 +71,36 @@ int main(int argc, char* argv[]){
 		int rwHead = 1;
 		while(inFile)
 		{
-
+			if(timeToClean)
+			{
+				int lowestIndex = 0;
+				for(i = 0; i < numSegments; i++)
+				{
+					if(activeBlocks[i] < activeBlocks[lowestIndex];
+						lowestIndex = i;
+				}
+				int cleanStartINdex = (numBlocks/numSegments) * lowestIndex;
+				//move all blocks in cleaned segment to head
+				for(i = cleanStartIndex; i < (cleanStartIndex + (numBlocks/numSegments)) && i < numBlocks; i++)
+				{
+					vector <int> temp;
+					if(disk[i]->type == 1)
+					{
+						for(int j = 0; j < disk[
+					}
+				} 
+			}
 			//if current block unocupied
 			if(disk[rwHead].type == -1)
 			{
 				inFile = (getline(infile, line))
 				stringstream ss(line);
-                string word;
-                vector<string> words;
-                while (ss>>word)
-                {
-                        words.push_back(word);
-                }
+				string word;
+				vector<string> words;
+				while (ss>>word)
+				{
+				        words.push_back(word);
+				}
 
 				if(words[0]=="READ")
 				{
@@ -96,39 +114,56 @@ int main(int argc, char* argv[]){
 					//if file exists
 					if(imap.find(currWriteFile) != imap.end)
 					{
-						//if the block exists
+						//if the block exists de-alloc
 						if(disk[imap[currWriteFile]]->inode.size() >= currWriteBlock)
 						{
 							int blockLocation = disk[imap[currWriteFile]]->inode[currWriteBlock];
 							//"de-aloc" (change type) old block, this may be unnessesary
 							disk[blockLocation]->type = -1;
-
-							//write new block to disk
-							disk[rwHead] = &newBlock(0, -1, nullptr);
-
-							while(disk[rwHead]->type !=-1)
-							{
-								rwHead++;
-								if(rwHead == numBlocks)
-									rwHead = 0;
-							}
-
-							//write new inode to disk and "de-aloc"
-							vector <int> newBlockMap;
-							for(int j = 0; j < disk[imap[currWriteFile]]->inode.size(); j++)
-							{	
-								newBlockMap.push_back(disk[imap[currWriteFile]]->inode[j]);
-							}
-
-							disk[imap[currWriteFile]]->type = -1;
-							disk[imap[currWriteFile]]->inode.clear();
-
-							disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
-							//change imap
-							imap[currWriteFile] = rwHead;
-
+							activeBlocks[blockLocation/(numBlocks/numSegments)]--;
 						}
-						else//if block does not yet exist
+
+						//write new block to disk
+						disk[rwHead] = &newBlock(0, -1, nullptr);
+						activeBlocks[rwHead/(numBlocks/numSegments)]++;
+
+						while(disk[rwHead]->type !=-1)
+						{
+							rwHead++;
+							if(rwHead == numBlocks)
+								rwHead = 0;
+						}
+
+						//write new inode to disk and "de-aloc" old
+						vector <int> newBlockMap;
+						for(int j = 0; j < disk[imap[currWriteFile]]->inode.size(); j++)
+						{	
+							newBlockMap.push_back(disk[imap[currWriteFile]]->inode[j]);
+						}
+
+						disk[imap[currWriteFile]]->type = -1;
+						disk[imap[currWriteFile]]->inode.clear();
+						
+						activeBlocks[imap[currWriteFile]/(numBlocks/numSegments)]--;
+
+						disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
+						
+						activeBlocks[rwHead/(numBlocks/numSegments)]++;
+						//change imap
+						imap[currWriteFile] = rwHead;
+						
+						while(disk[rwHead]->type !=-1)
+						{
+							rwHead++;
+							if(rwHead == numBlocks)
+								rwHead = 0;
+						}
+
+						//rewrite imap to file
+						disk[mapLoc]->type = -1;
+						
+						disk[rwHead]->type = 2;
+						mapLoc = rwHead;
 					}
 					else//if file does not yet exist
 					{
@@ -136,6 +171,8 @@ int main(int argc, char* argv[]){
 
 						//write block to disk
 						disk[rwHead] = &newBlock(0, -1, nullptr);
+
+						activeBlocks[rwHead/(numBlocks/numSegments)]++;
 						int newBlockLoc = rwHead;
 						while(disk[rwHead]->type !=-1)
 						{
@@ -148,6 +185,8 @@ int main(int argc, char* argv[]){
 						vector <int> newBlockMap;
 						newBlockMap.push_back(newBlockLoc);
 						disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
+
+						activeBlocks[rwHead/(numBlocks/numSegments)]++;
 
 						imap.insert(pair<int, int>(currWriteFile,rwHead));
 
