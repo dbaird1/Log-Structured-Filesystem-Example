@@ -29,6 +29,7 @@ void updateBlock(block* oldBlock, block* headBlock){
 	
 }
 int main(int argc, char* argv[]){
+	long totalSeek = 0;
 	ifstream infile;
 	int i, numSegments, segSize;
         string inputFile;
@@ -59,6 +60,9 @@ int main(int argc, char* argv[]){
 	int currWriteBlock, currWriteFile;
 
 
+
+	vector <int> newBlockMap;
+
 	//create and write imap
 	int mapLoc = 0;
 	map<int,int> imap;
@@ -71,7 +75,8 @@ int main(int argc, char* argv[]){
 		int rwHead = 1;
 		while(inFile)
 		{
-			if(timeToClean)
+			//clean if it is determined that we should
+			if(false)
 			{
 				int lowestIndex = 0;
 				for(i = 0; i < numSegments; i++)
@@ -79,12 +84,12 @@ int main(int argc, char* argv[]){
 					if(activeBlocks[i] < activeBlocks[lowestIndex];
 						lowestIndex = i;
 				}
-				int cleanStartINdex = (numBlocks/numSegments) * lowestIndex;
+				int cleanStartINdex = segSize * lowestIndex;
 				//move all blocks in cleaned segment to head
-				for(i = cleanStartIndex; i < (cleanStartIndex + (numBlocks/numSegments)) && i < numBlocks; i++)
+				for(i = cleanStartIndex; i < (cleanStartIndex + segSize) && i < numBlocks; i++)
 				{
 					vector <int> temp;
-					while(disk[i]->type ==-1 &&  i < (cleanStartIndex + (numBlocks/numSegments)) && i < numBlocks)
+					while(disk[i]->type ==-1 &&  i < (cleanStartIndex + segSize) && i < numBlocks)
 					{
 						i++;
 					}
@@ -126,10 +131,20 @@ int main(int argc, char* argv[]){
 				{
 				        words.push_back(word);
 				}
-
+				//TODO? do i bother finding the seek time to the imap?
 				if(words[0]=="READ")
 				{
+					currReadFile = stoi(words[1], nullptr);
+					currReadBlock = stoi(words[2], nullptr);
+
 					//just alter stats on disk needle movement
+					int travelingRW = rwHead;
+					int inodeDistance = rwHead - imap[currReadFile];
+					if((numBlocks - rwHead)+imap[currReadFile] < inodeDistance)
+						inodeDistance = (numBlocks - rwHead)+imap[currReadFile];
+					int blockDistance = inodeDistance - imap[currReadFile]]->inode[currReadBlock];
+					if((numBlocks - inodeDistance) + imap[currReadFile]]->inode[currReadBlock] < blockDistance
+					totalSeek+= 
 				}
 				else if(words[0] == "WRITE")
 				{	
@@ -145,22 +160,27 @@ int main(int argc, char* argv[]){
 							int blockLocation = disk[imap[currWriteFile]]->inode[currWriteBlock];
 							//"de-aloc" (change type) old block, this may be unnessesary
 							disk[blockLocation]->type = -1;
-							activeBlocks[blockLocation/(numBlocks/numSegments)]--;
+							activeBlocks[blockLocation/segSize]--;
 						}
 
 						//write new block to disk
-						disk[rwHead] = &newBlock(0, -1, nullptr);
-						activeBlocks[rwHead/(numBlocks/numSegments)]++;
+						//disk[rwHead] = &newBlock(0, -1, nullptr);
+						disk[rwHead]->type = 0;
+						disk[rwHead]->fileId = -1;
+						disk[rwHead]->inode.clear();
+
+						activeBlocks[rwHead/segSize]++;
 
 						while(disk[rwHead]->type !=-1)
 						{
 							rwHead++;
+							totalSeek++;
 							if(rwHead == numBlocks)
 								rwHead = 0;
 						}
 
 						//write new inode to disk and "de-aloc" old
-						vector <int> newBlockMap;
+						newBlockMap.clear();
 						for(int j = 0; j < disk[imap[currWriteFile]]->inode.size(); j++)
 						{	
 							newBlockMap.push_back(disk[imap[currWriteFile]]->inode[j]);
@@ -169,17 +189,23 @@ int main(int argc, char* argv[]){
 						disk[imap[currWriteFile]]->type = -1;
 						disk[imap[currWriteFile]]->inode.clear();
 						
-						activeBlocks[imap[currWriteFile]/(numBlocks/numSegments)]--;
+						activeBlocks[imap[currWriteFile]/segSize]--;
 
-						disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
-						
-						activeBlocks[rwHead/(numBlocks/numSegments)]++;
+						//disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
+						disk[rwHead]-> type = 1;
+						disk[rwHead]->fileId = currWriteFile;						
+						disk[rwHead]->inode.clear();
+						for(int j = 0; j < newBlockMap.size(); j++)
+							disk[rwHead].push_back(newBlockMap[j]);
+
+						activeBlocks[rwHead/segSize]++;
 						//change imap
 						imap[currWriteFile] = rwHead;
 						
 						while(disk[rwHead]->type !=-1)
 						{
 							rwHead++;
+							totalSeek++;
 							if(rwHead == numBlocks)
 								rwHead = 0;
 						}
@@ -195,29 +221,42 @@ int main(int argc, char* argv[]){
 
 
 						//write block to disk
-						disk[rwHead] = &newBlock(0, -1, nullptr);
+						//disk[rwHead] = &newBlock(0, -1, nullptr);
+						disk[rwHead]->type = 0;
+						disk[rwHead]->fileId = -1;
+						disk[rwHead]->inode.clear();
 
-						activeBlocks[rwHead/(numBlocks/numSegments)]++;
+
+						activeBlocks[rwHead/segSize]++;
 						int newBlockLoc = rwHead;
 						while(disk[rwHead]->type !=-1)
 						{
 							rwHead++;
+							totalSeek++;
 							if(rwHead == numBlocks)
 								rwHead = 0;
 						}
 
 						//write inode to disk
-						vector <int> newBlockMap;
+						newBlockMap.clear();
 						newBlockMap.push_back(newBlockLoc);
-						disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
+						//disk[rwHead] = &newBlock(1, currWriteFile, newBlockMap);
+						disk[rwHead]-> type = 1;
+						disk[rwHead]->fileId = currWriteFile;						
+						disk[rwHead]->inode.clear();
+						for(int j = 0; j < newBlockMap.size(); j++)
+							disk[rwHead].push_back(newBlockMap[j]);
 
-						activeBlocks[rwHead/(numBlocks/numSegments)]++;
+
+
+						activeBlocks[rwHead/segSize]++;
 
 						imap.insert(pair<int, int>(currWriteFile,rwHead));
 
 						while(disk[rwHead]->type !=-1)
 						{
 							rwHead++;
+							totalSeek++;
 							if(rwHead == numBlocks)
 								rwHead = 0;
 						}
@@ -239,6 +278,7 @@ int main(int argc, char* argv[]){
 			while(disk[rwHead]->type !=-1)
 			{
 				rwHead++;
+totalSeek++;
 				if(rwHead == numBlocks)
 					rwHead = 0;
 			}
@@ -254,21 +294,3 @@ int main(int argc, char* argv[]){
 	return 0;
 }
 
-
-/*
-		{
-			stringstream ss(line);
-                        string word;
-                        vector<string> words;
-                        while (ss>>word){
-                                words.push_back(word);
-                        }
-
-			if(words[0]=="READ"){
-			}
-
-			else if(words[0] == "WRITE"){	
-
-			}
-		}
-*/
